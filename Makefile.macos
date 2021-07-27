@@ -1,0 +1,33 @@
+DEFAULT=extension-functions.dylib
+# assumeing that sqlite is installed using homebrew
+# this creates a problem:
+#     pkg-config does not work well for sqlite
+# 
+# find the include dir for homebrew
+SQLITEINC=$(shell dirname `find /opt -name 'sqlite3.h' 2> /dev/null | tail -1`)
+# get the directory where it is installed
+SQLITE=$(shell dirname "${SQLITEINC}")
+CC=cc
+INSTALL=install
+CFLAGS?=
+CFLAGS+=$(shell pkg-config --cflags sqlite3 libpcre) -fPIC
+LIBS=$(shell pkg-config --libs libpcre)
+prefix=
+DESTDIR=${HOME}
+
+.PHONY : install clean
+
+extension-functions.dylib : extension-functions.o
+	gcc -g -fPIC  -dynamiclib -install_name extension-functions.dylib extension-functions.o -o extension-functions.dylib -L${SQLITE}/lib ${LIBS}
+
+
+extension-functions.o : extension-functions.c
+	@echo "Directory where sqlite is installed and used: $(SQLITE)"
+	gcc -Wall -pedantic -I${SQLITE}/include ${CPPFLAGS} ${CFLAGS} -c -g -fPIC extension-functions.c -o extension-functions.o
+
+
+install : extension-functions.so
+	${INSTALL} -pD -m755 pcre.so ${DESTDIR}${prefix}/lib/sqlite3/pcre.so
+
+clean :
+	-rm -f extension-functions.o extension-functions.dylib
